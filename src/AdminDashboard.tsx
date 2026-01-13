@@ -483,12 +483,12 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose, categories, in
                         <div className="mt-4 p-1">
                             <button 
                                 onClick={() => setNewVideo(prev => ({ ...prev, is_trending: !prev.is_trending }))}
-                                className={`w-full py-5 rounded-2xl border-2 font-black transition-all duration-300 flex items-center justify-center gap-4 text-lg active:scale-95 group relative overflow-hidden ${newVideo.is_trending ? 'bg-red-600 border-red-500 text-white shadow-[0_0_30px_red]' : 'bg-black border-white/20 text-gray-400 hover:border-red-500/50 hover:text-white'}`}
+                                className={`w-full py-4 rounded-2xl border-2 font-black transition-all duration-300 flex items-center justify-center gap-4 text-lg active:scale-95 group relative overflow-hidden ${newVideo.is_trending ? 'bg-red-600 border-red-500 text-white shadow-[0_0_30px_red]' : 'bg-black border-white/20 text-gray-400 hover:border-red-500/50 hover:text-white'}`}
                             >
                                 {newVideo.is_trending && <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent animate-shimmer pointer-events-none"></div>}
                                 <span className={`text-3xl transition-transform group-hover:scale-125 ${newVideo.is_trending ? 'animate-bounce' : ''}`}>🔥</span>
                                 <div className="flex flex-col items-start">
-                                    <span className="uppercase tracking-widest">{newVideo.is_trending ? 'تم تفعيل وضع الترند' : 'وضع الترند معطل'}</span>
+                                    <span className="uppercase tracking-widest text-sm">{newVideo.is_trending ? 'تم تفعيل وضع الترند (NIGHTMARE MODE)' : 'وضع الترند معطل'}</span>
                                     <span className="text-[10px] opacity-70 font-normal">{newVideo.is_trending ? 'سيظهر هذا الفيديو في مقدمة الصفحة مع إطار ناري' : 'اضغط لتفعيل النار'}</span>
                                 </div>
                             </button>
