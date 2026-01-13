@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback, useMemo, Suspense, lazy } from 'react';
 import { Video, AppView, UserInteractions } from './types';
 import { db, ensureAuth } from './firebaseConfig';
@@ -140,7 +141,10 @@ const App: React.FC = () => {
 
     const initFirestore = async () => {
         try {
-            ensureAuth().catch(e => console.error("Background Auth Error:", e));
+            // CRITICAL: Await authentication BEFORE setting up listeners
+            // This ensures Firebase rules don't reject the connection
+            await ensureAuth().catch(e => console.error("Background Auth Error:", e));
+            
             if (!isMounted) return;
 
             const q = query(collection(db, "videos"), orderBy("created_at", "desc"));
@@ -166,9 +170,11 @@ const App: React.FC = () => {
                 
                 if (isMounted) setLoading(false);
             }, (err) => {
+                console.error("Firestore Error:", err);
                 if (isMounted) setLoading(false);
             });
         } catch (error) {
+            console.error("Init Error:", error);
             if (isMounted) setLoading(false);
         }
     };
