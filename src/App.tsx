@@ -103,37 +103,51 @@ const App: React.FC = () => {
   // --- INTERACTIVE CLOSE & REFRESH ---
   // Triggered when X is clicked in Shorts/Long player
   const handleClosePlayer = useCallback(() => {
+      // 1. التقاط معرف الفيديو قبل إغلاق المشغل
+      const closedVideoId = selectedShort?.video?.id || selectedLong?.video?.id;
+      const closedVideoCategory = selectedShort?.video?.category || selectedLong?.video?.category;
+
       setSelectedShort(null);
       setSelectedLong(null);
       
-      // Fast timeout to allow UI to close first
+      // تأخير بسيط للسماح للأنيميشن بالعمل
       setTimeout(() => {
-          // 1. Generate a fresh list
-          let freshList = applySmartRecommendations(rawVideos, interactions);
-          
-          // 2. FORCE SHUFFLE: If the top video is the same as before, rotate the list
-          // This guarantees the user sees something "different" immediately
-          if (displayVideos.length > 0 && freshList.length > 0) {
-             const currentTopId = displayVideos[0].id;
-             // If smart algo put the same video at top (due to high score), move it
-             if (freshList[0].id === currentTopId) {
-                 const topItem = freshList.shift();
-                 if (topItem) freshList.push(topItem); // Move to end
-                 // Additional shuffle of top 5 to be sure
-                 const topBatch = freshList.slice(0, 5).sort(() => 0.5 - Math.random());
-                 freshList = [...topBatch, ...freshList.slice(5)];
-             }
-          }
+          if (closedVideoId) {
+              // 2. إزالة الفيديو المغلق من القائمة المعروضة حالياً
+              let updatedFeed = displayVideos.filter(v => v.id !== closedVideoId);
 
-          // 3. Apply Update
-          setDisplayVideos([...freshList]); // Spread to force re-render
-          showToast("تم تغيير الواقع.. فيديوهات جديدة ظهرت ☠️");
-          window.scrollTo({ top: 0, behavior: 'smooth' });
-          
-          // 4. Preload new content
-          initSmartBuffering(freshList.slice(0, 3));
+              // 3. البحث عن بديل من المخزن الأصلي (rawVideos)
+              // الشرط: فيديو غير موجود حالياً في المعروض + ليس الفيديو الذي تم إغلاقه
+              const currentlyDisplayedIds = new Set(updatedFeed.map(v => v.id));
+              currentlyDisplayedIds.add(closedVideoId);
+
+              // محاولة إيجاد بديل من نفس التصنيف أولاً (للحفاظ على اهتمام المستخدم)
+              let replacement = rawVideos.find(v => 
+                  !currentlyDisplayedIds.has(v.id) && 
+                  v.category === closedVideoCategory &&
+                  v.video_type === 'Shorts' // نفضل الشورتس بما أن الطلب يخص الشورتس
+              );
+
+              // إذا لم نجد من نفس التصنيف، نأخذ أي فيديو جديد عشوائي
+              if (!replacement) {
+                  replacement = rawVideos.find(v => !currentlyDisplayedIds.has(v.id));
+              }
+
+              if (replacement) {
+                  // إضافة البديل في نهاية القائمة (سيتم توزيعه تلقائياً بواسطة Layout Engine)
+                  updatedFeed.push(replacement);
+              }
+
+              // 4. تحديث الحالة فوراً ليختفي الفيديو ويظهر الجديد
+              setDisplayVideos(updatedFeed);
+              
+              // تحميل مسبق للبديل الجديد لضمان سرعة التشغيل
+              if (replacement) {
+                  initSmartBuffering([replacement]);
+              }
+          }
       }, 50);
-  }, [rawVideos, interactions, applySmartRecommendations, displayVideos]);
+  }, [displayVideos, rawVideos, selectedShort, selectedLong]);
 
   // --- TRIGGER FEED UPDATE (Background) ---
   const handleVideoFinish = useCallback((category: string) => {
@@ -235,7 +249,7 @@ const App: React.FC = () => {
       likedIds: p.likedIds.filter(x => x !== id)
     }));
     showToast("تم الاستبعاد ⚰️");
-    handleClosePlayer(); // Close and Refresh immediately on dislike
+    handleClosePlayer(); // Close and Remove immediately on dislike
   };
 
   const handleDownloadToggle = async (video: Video) => {
@@ -454,7 +468,7 @@ const App: React.FC = () => {
             initialVideo={selectedShort.video}
             videoList={selectedShort.list}
             interactions={interactions}
-            onClose={handleClosePlayer} // Ensures refresh happens on close
+            onClose={handleClosePlayer} // Ensures replace happens on close
             onLike={handleLikeToggle}
             onDislike={handleDislike}
             onCategoryClick={(cat) => { setActiveCategory(cat); setCurrentView(AppView.CATEGORY); setSelectedShort(null); }}
@@ -477,7 +491,7 @@ const App: React.FC = () => {
           <LongPlayerOverlay 
             video={selectedLong.video}
             allLongVideos={selectedLong.list}
-            onClose={handleClosePlayer} // Ensures refresh happens on close
+            onClose={handleClosePlayer} // Ensures replace happens on close
             onLike={() => handleLikeToggle(selectedLong.video.id)}
             onDislike={() => handleDislike(selectedLong.video.id)}
             onSave={() => { const id = selectedLong.video.id; setInteractions(p => { const isSaved = p.savedIds.includes(id); return { ...p, savedIds: isSaved ? p.savedIds.filter(x => x !== id) : [...p.savedIds, id] }; }); }}
