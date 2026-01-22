@@ -12,18 +12,35 @@ export const preloadAsset = async (url: string, cacheName: string): Promise<bool
     const match = await cache.match(url);
     if (match) return true;
 
-    const response = await fetch(url, {
-      headers: cacheName === VIDEO_CACHE_NAME ? { 'Range': `bytes=0-${CHUNK_SIZE}` } : {},
-      mode: 'cors',
-      credentials: 'omit'
-    });
+    // Attempt 1: Try fetching with range (best for video)
+    // IMPORTANT: If R2 CORS rules don't allow 'Range' header, this might fail or return opaque.
+    try {
+        const response = await fetch(url, {
+          headers: cacheName === VIDEO_CACHE_NAME ? { 'Range': `bytes=0-${CHUNK_SIZE}` } : {},
+          mode: 'cors', // Try standard CORS first
+          credentials: 'omit'
+        });
 
-    if (response.ok || response.status === 206) {
-      await cache.put(url, response.clone());
-      return true;
+        if (response.ok || response.status === 206) {
+          await cache.put(url, response.clone());
+          return true;
+        }
+    } catch (e) {
+        // Fallback: If CORS/Range fails, try a simple no-cors fetch (opaque) 
+        // This stops the red console error but might not allow perfect seeking from cache
+        if (cacheName === VIDEO_CACHE_NAME) {
+             const fallbackResponse = await fetch(url, { mode: 'no-cors' });
+             if (fallbackResponse) {
+                 await cache.put(url, fallbackResponse);
+                 return true;
+             }
+        }
     }
     return false;
-  } catch (e) { return false; }
+  } catch (e) { 
+      // Silent fail is better than console spam for users
+      return false; 
+  }
 };
 
 export const initSmartBuffering = async (videos: Video[]): Promise<void> => {
@@ -40,7 +57,6 @@ export const initSmartBuffering = async (videos: Video[]): Promise<void> => {
 
 // --- NEW: AI-Triggered Super Boost ---
 export const forceAggressiveBuffer = async (videos: Video[]): Promise<void> => {
-    console.log("🚀 AI triggered aggressive buffering...");
     if (!navigator.onLine || !videos || videos.length === 0) return;
 
     // Load deeper into the list (next 20 videos) to solve lag instantly

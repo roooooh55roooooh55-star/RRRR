@@ -431,7 +431,7 @@ export const InteractiveMarquee: React.FC<{
 
   const containerStyle = transparent 
     ? `relative overflow-hidden w-full ${containerHeight} bg-transparent animate-in fade-in duration-700`
-    : `relative overflow-hidden w-full ${containerHeight} bg-neutral-900/5 border-y border-white/5 animate-in fade-in duration-700 shadow-inner`;
+    : `relative overflow-hidden w-full ${containerHeight} bg-neutral-900/5 border-y border-white/5 animate-in fade-in duration-700`; // Removed shadow-inner
 
   return (
     <div className={containerStyle} dir="ltr">
@@ -472,8 +472,9 @@ export const InteractiveMarquee: React.FC<{
                    </button>
                 </div>
 
-                <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent p-2 backdrop-blur-[1px] pointer-events-none z-20">
-                  <p className="text-[8px] font-black text-white truncate italic text-right leading-none">{item.title}</p>
+                {/* MODIFIED: Removed bg-gradient-to-t to fix bottom border dimming */}
+                <div className="absolute inset-x-0 bottom-0 p-2 pointer-events-none z-20">
+                  <p className="text-[8px] font-black text-white truncate italic text-right leading-none drop-shadow-[0_1.5px_1.5px_rgba(0,0,0,0.9)]">{item.title}</p>
                 </div>
               </div>
             );
@@ -712,16 +713,16 @@ const MainContent: React.FC<any> = ({
 
             {/* 2. Shorts Grid (The "Shorts Videos" mentioned at start) */}
             {gridShorts1.length > 0 && (
-                <>
-                <SectionHeader title="أهوال قصيرة (مختارة)" color="bg-yellow-500" />
-                <div className="px-4 grid grid-cols-2 gap-3.5 mb-6">
-                    {gridShorts1.map((v: any) => v && (
-                    <div key={v.id} onClick={() => onPlayShort(v, shortsOnly)} className="aspect-[9/16] animate-in fade-in duration-500">
-                        <VideoCardThumbnail video={v} interactions={interactions} isOverlayActive={isOverlayActive} onLike={onLike} onCategoryClick={onCategoryClick} />
+                <div className="mt-8"> {/* Added margin-top to push it down slightly */}
+                    <SectionHeader title="أهوال قصيرة (مختارة)" color="bg-yellow-500" />
+                    <div className="px-4 grid grid-cols-2 gap-3.5 mb-6">
+                        {gridShorts1.map((v: any) => v && (
+                        <div key={v.id} onClick={() => onPlayShort(v, shortsOnly)} className="aspect-[9/16] animate-in fade-in duration-500">
+                            <VideoCardThumbnail video={v} interactions={interactions} isOverlayActive={isOverlayActive} onLike={onLike} onCategoryClick={onCategoryClick} />
+                        </div>
+                        ))}
                     </div>
-                    ))}
                 </div>
-                </>
             )}
 
             {gridShorts2.length > 0 && (

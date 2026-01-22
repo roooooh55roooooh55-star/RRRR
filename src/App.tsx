@@ -68,55 +68,77 @@ const App: React.FC = () => {
   const applySmartRecommendations = useCallback((videos: Video[], userInteractions: UserInteractions) => {
     if (!videos || videos.length === 0) return [];
     
-    // 1. Get User Interests from SmartBrain (Most recent is at index 0)
     const userInterests = SmartBrain.getTopInterests();
     const primaryInterest = userInterests.length > 0 ? userInterests[0] : null;
     
     const seenIds = new Set([
-        ...userInteractions.likedIds, 
         ...userInteractions.dislikedIds,
-        ...userInteractions.watchHistory.filter(w => w.progress > 0.8).map(w => w.id) // Only filter largely watched
+        ...userInteractions.watchHistory.filter(w => w.progress > 0.1).map(w => w.id)
     ]);
 
-    // 2. Scoring System
+    const unseenVideos = videos.filter(v => !seenIds.has(v.id));
+    const seenVideos = videos.filter(v => seenIds.has(v.id));
+
+    // Improved Scoring with more randomness for "Different Videos" effect
     const scoreVideo = (v: Video) => {
-        let score = 0; 
+        let score = Math.random() * 40; // Increased random weight to ensure shuffle
         
-        // HUGE BOOST for the category currently being watched/finished
-        if (primaryInterest && v.category === primaryInterest) {
-            score += 500; // Force to top
-        } 
-        // Moderate boost for other interests
-        else if (userInterests.includes(v.category)) {
-            score += 50; 
-        }
+        if (primaryInterest && v.category === primaryInterest) score += 30; 
+        else if (userInterests.includes(v.category)) score += 10;
 
-        if (v.is_trending) score += 10;
+        if (v.is_trending) score += 15;
         
-        // Random factor for discovery (0-10)
-        score += Math.random() * 10;
-        
-        // Slight penalty if seen, but not if it matches primary interest (we might want to re-show hits)
-        if (seenIds.has(v.id) && v.category !== primaryInterest) {
-            score -= 100;
-        }
-
         return score;
     };
 
-    // 3. Sort
-    return [...videos].sort((a, b) => scoreVideo(b) - scoreVideo(a));
+    const sortedUnseen = unseenVideos.sort((a, b) => scoreVideo(b) - scoreVideo(a));
+    
+    const finalFeed = sortedUnseen.length < 5 
+        ? [...sortedUnseen, ...seenVideos.sort(() => 0.5 - Math.random()).slice(0, 10)] 
+        : sortedUnseen;
+
+    return finalFeed;
   }, []);
 
-  // --- TRIGGER FEED UPDATE ---
-  // Called when a user finishes a video to update the home feed instantly
-  const handleVideoFinish = useCallback((category: string) => {
-      console.log("🎬 User finished video in category:", category);
-      SmartBrain.saveInterest(category);
+  // --- INTERACTIVE CLOSE & REFRESH ---
+  // Triggered when X is clicked in Shorts/Long player
+  const handleClosePlayer = useCallback(() => {
+      setSelectedShort(null);
+      setSelectedLong(null);
       
-      // Re-sort display videos immediately based on new interest
-      setDisplayVideos(prev => applySmartRecommendations(rawVideos, interactions));
-  }, [rawVideos, interactions, applySmartRecommendations]);
+      // Fast timeout to allow UI to close first
+      setTimeout(() => {
+          // 1. Generate a fresh list
+          let freshList = applySmartRecommendations(rawVideos, interactions);
+          
+          // 2. FORCE SHUFFLE: If the top video is the same as before, rotate the list
+          // This guarantees the user sees something "different" immediately
+          if (displayVideos.length > 0 && freshList.length > 0) {
+             const currentTopId = displayVideos[0].id;
+             // If smart algo put the same video at top (due to high score), move it
+             if (freshList[0].id === currentTopId) {
+                 const topItem = freshList.shift();
+                 if (topItem) freshList.push(topItem); // Move to end
+                 // Additional shuffle of top 5 to be sure
+                 const topBatch = freshList.slice(0, 5).sort(() => 0.5 - Math.random());
+                 freshList = [...topBatch, ...freshList.slice(5)];
+             }
+          }
+
+          // 3. Apply Update
+          setDisplayVideos([...freshList]); // Spread to force re-render
+          showToast("تم تغيير الواقع.. فيديوهات جديدة ظهرت ☠️");
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+          
+          // 4. Preload new content
+          initSmartBuffering(freshList.slice(0, 3));
+      }, 50);
+  }, [rawVideos, interactions, applySmartRecommendations, displayVideos]);
+
+  // --- TRIGGER FEED UPDATE (Background) ---
+  const handleVideoFinish = useCallback((category: string) => {
+      SmartBrain.saveInterest(category);
+  }, []);
 
   const handleManualRefresh = useCallback(async () => {
     if (isRefreshing) return;
@@ -213,8 +235,7 @@ const App: React.FC = () => {
       likedIds: p.likedIds.filter(x => x !== id)
     }));
     showToast("تم الاستبعاد ⚰️");
-    setSelectedShort(null);
-    setSelectedLong(null);
+    handleClosePlayer(); // Close and Refresh immediately on dislike
   };
 
   const handleDownloadToggle = async (video: Video) => {
@@ -238,7 +259,6 @@ const App: React.FC = () => {
   };
 
   const playShortVideo = (v: Video, list: Video[]) => {
-      // Just opening triggers interest, finishing triggers boost
       SmartBrain.saveInterest(v.category);
       const smartList = displayVideos.filter(vid => vid.video_type === 'Shorts');
       setSelectedShort({ video: v, list: smartList });
@@ -434,15 +454,14 @@ const App: React.FC = () => {
             initialVideo={selectedShort.video}
             videoList={selectedShort.list}
             interactions={interactions}
-            onClose={() => setSelectedShort(null)}
+            onClose={handleClosePlayer} // Ensures refresh happens on close
             onLike={handleLikeToggle}
             onDislike={handleDislike}
             onCategoryClick={(cat) => { setActiveCategory(cat); setCurrentView(AppView.CATEGORY); setSelectedShort(null); }}
             onSave={(id) => setInteractions(p => { const isSaved = p.savedIds.includes(id); return { ...p, savedIds: isSaved ? p.savedIds.filter(x => x !== id) : [...p.savedIds, id] }; })}
             onProgress={(id, progress) => {
-                // If progress is high (>80%), update recommendations instantly
                 if (progress > 0.8) {
-                    const vid = selectedShort.video; // Capture current
+                    const vid = selectedShort.video;
                     if (vid) handleVideoFinish(vid.category);
                 }
                 setInteractions(p => { const history = p.watchHistory.filter(h => h.id !== id); return { ...p, watchHistory: [...history, { id, progress }] }; });
@@ -458,7 +477,7 @@ const App: React.FC = () => {
           <LongPlayerOverlay 
             video={selectedLong.video}
             allLongVideos={selectedLong.list}
-            onClose={() => setSelectedLong(null)}
+            onClose={handleClosePlayer} // Ensures refresh happens on close
             onLike={() => handleLikeToggle(selectedLong.video.id)}
             onDislike={() => handleDislike(selectedLong.video.id)}
             onSave={() => { const id = selectedLong.video.id; setInteractions(p => { const isSaved = p.savedIds.includes(id); return { ...p, savedIds: isSaved ? p.savedIds.filter(x => x !== id) : [...p.savedIds, id] }; }); }}
@@ -472,7 +491,6 @@ const App: React.FC = () => {
             isGlobalDownloading={!!downloadProgress}
             onProgress={(p) => { 
                 const id = selectedLong.video.id; 
-                // Instant update if near end
                 if (p > 0.9) {
                     handleVideoFinish(selectedLong.video.category);
                 }
@@ -483,7 +501,7 @@ const App: React.FC = () => {
       )}
 
       {toast && (
-        <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-[1000] bg-red-600 text-white px-6 py-3 rounded-full font-black shadow-[0_0_20px_red] animate-bounce text-xs">
+        <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-[1000] bg-red-600 text-white px-6 py-3 rounded-full font-black shadow-[0_0_20px_red] animate-bounce text-xs whitespace-nowrap">
           {toast}
         </div>
       )}
