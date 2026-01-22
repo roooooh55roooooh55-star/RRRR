@@ -713,8 +713,8 @@ const MainContent: React.FC<any> = ({
 
             {/* 2. Shorts Grid (The "Shorts Videos" mentioned at start) */}
             {gridShorts1.length > 0 && (
-                <div className="mt-8"> {/* Added margin-top to push it down slightly */}
-                    <SectionHeader title="أهوال قصيرة (مختارة)" color="bg-yellow-500" />
+                <div className="mt-14"> {/* Increased top margin to push it down significantly */}
+                    <SectionHeader title="أهوال قصيرة (مختارة)" colorName="lime" />
                     <div className="px-4 grid grid-cols-2 gap-3.5 mb-6">
                         {gridShorts1.map((v: any) => v && (
                         <div key={v.id} onClick={() => onPlayShort(v, shortsOnly)} className="aspect-[9/16] animate-in fade-in duration-500">
@@ -738,7 +738,7 @@ const MainContent: React.FC<any> = ({
             {/* 3. Stacked Longs (Batch 1) */}
             {stackLongs1.length > 0 && (
                 <>
-                <SectionHeader title="حكايات مرعبة (كاملة)" color="bg-red-600" />
+                <SectionHeader title="حكايات مرعبة (كاملة)" colorName="red" />
                 <div className="px-4 space-y-4 mb-16">
                     {stackLongs1.map((v: any) => v && (
                     <div key={v.id} onClick={() => onPlayLong(v, longsOnly)} className="aspect-video w-full animate-in zoom-in-95 duration-500">
@@ -752,7 +752,7 @@ const MainContent: React.FC<any> = ({
             {/* 4. Moving Shorts Bar */}
             {marqueeShorts2.length > 0 && (
                 <div className="mb-16"> 
-                    <SectionHeader title="ومضات من الجحيم" color="bg-orange-500" />
+                    <SectionHeader title="ومضات من الجحيم" colorName="orange" />
                     <InteractiveMarquee videos={marqueeShorts2} onPlay={(v) => onPlayShort(v, shortsOnly)} isShorts={true} direction="left-to-right" interactions={interactions} onLike={onLike} />
                 </div>
             )}
@@ -760,7 +760,7 @@ const MainContent: React.FC<any> = ({
             {/* 5. Moving Long Bar */}
             {marqueeLongs2.length > 0 && (
                 <div className="mb-16"> 
-                    <SectionHeader title="أرشيف الخزنة" color="bg-emerald-500" />
+                    <SectionHeader title="أرشيف الخزنة" colorName="cyan" />
                     <InteractiveMarquee videos={marqueeLongs2} onPlay={(v) => onPlayLong(v, longsOnly)} direction="right-to-left" interactions={interactions} onLike={onLike} />
                 </div>
             )}
@@ -768,7 +768,7 @@ const MainContent: React.FC<any> = ({
             {/* 6. Shorts Grid (Batch 2) */}
             {gridShorts3.length > 0 && (
                 <>
-                <SectionHeader title="ظلال متحركة" color="bg-purple-500" />
+                <SectionHeader title="ظلال متحركة" colorName="purple" />
                 <div className="px-4 grid grid-cols-2 gap-3.5 mb-6">
                     {gridShorts3.map((v: any) => v && (
                     <div key={v.id} onClick={() => onPlayShort(v, shortsOnly)} className="aspect-[9/16] animate-in fade-in duration-500">
@@ -792,7 +792,7 @@ const MainContent: React.FC<any> = ({
             {/* 7. Stacked Longs (Batch 2) */}
             {stackLongs2.length > 0 && (
                 <>
-                <SectionHeader title="ملفات سرية" color="bg-blue-600" />
+                <SectionHeader title="ملفات سرية" colorName="blue" />
                 <div className="px-4 space-y-4 mb-16">
                     {stackLongs2.map((v: any) => v && (
                     <div key={v.id} onClick={() => onPlayLong(v, longsOnly)} className="aspect-video w-full animate-in zoom-in-95 duration-500">
@@ -806,14 +806,14 @@ const MainContent: React.FC<any> = ({
             {/* 8. Final Sequence: Shorts Bar -> Long Bar -> Shorts Bar */}
             {marqueeShorts3.length > 0 && (
                 <div className="mb-16">
-                    <SectionHeader title="النهاية تقترب" color="bg-pink-600" />
+                    <SectionHeader title="النهاية تقترب" colorName="fuchsia" />
                     <InteractiveMarquee videos={marqueeShorts3} onPlay={(v) => onPlayShort(v, shortsOnly)} isShorts={true} direction="left-to-right" interactions={interactions} onLike={onLike} />
                 </div>
             )}
 
             {marqueeLongs3.length > 0 && (
                 <div className="mb-16">
-                    <SectionHeader title="الخروج من القبو" color="bg-white" />
+                    <SectionHeader title="الخروج من القبو" colorName="white" />
                     <InteractiveMarquee videos={marqueeLongs3} onPlay={(v) => onPlayLong(v, longsOnly)} direction="right-to-left" interactions={interactions} onLike={onLike} />
                 </div>
             )}
@@ -900,11 +900,34 @@ const MainContent: React.FC<any> = ({
   );
 };
 
-const SectionHeader: React.FC<{ title: string, color: string }> = ({ title, color }) => (
-  <div className="px-5 py-2 flex items-center gap-2.5">
-    <div className={`w-1.5 h-3.5 ${color} rounded-full`}></div>
-    <h2 className="text-[11px] font-black text-white italic uppercase tracking-[0.15em]">{title}</h2>
-  </div>
-);
+const SectionHeader: React.FC<{ title: string, colorName: string }> = ({ title, colorName }) => {
+  // Map simple names to Tailwind Neon classes
+  const colorMap: Record<string, { bg: string, text: string, shadow: string }> = {
+    red: { bg: 'bg-red-600', text: 'text-red-500', shadow: 'shadow-[0_0_15px_#ef4444]' },
+    yellow: { bg: 'bg-yellow-400', text: 'text-yellow-400', shadow: 'shadow-[0_0_15px_#facc15]' },
+    green: { bg: 'bg-green-500', text: 'text-green-500', shadow: 'shadow-[0_0_15px_#22c55e]' },
+    blue: { bg: 'bg-blue-500', text: 'text-blue-500', shadow: 'shadow-[0_0_15px_#3b82f6]' },
+    purple: { bg: 'bg-purple-500', text: 'text-purple-500', shadow: 'shadow-[0_0_15px_#a855f7]' },
+    pink: { bg: 'bg-pink-500', text: 'text-pink-500', shadow: 'shadow-[0_0_15px_#ec4899]' },
+    orange: { bg: 'bg-orange-500', text: 'text-orange-500', shadow: 'shadow-[0_0_15px_#f97316]' },
+    cyan: { bg: 'bg-cyan-400', text: 'text-cyan-400', shadow: 'shadow-[0_0_15px_#22d3ee]' },
+    lime: { bg: 'bg-lime-400', text: 'text-lime-400', shadow: 'shadow-[0_0_15px_#a3e635]' },
+    fuchsia: { bg: 'bg-fuchsia-500', text: 'text-fuchsia-500', shadow: 'shadow-[0_0_15px_#d946ef]' },
+    emerald: { bg: 'bg-emerald-500', text: 'text-emerald-500', shadow: 'shadow-[0_0_15px_#10b981]' },
+    rose: { bg: 'bg-rose-500', text: 'text-rose-500', shadow: 'shadow-[0_0_15px_#f43f5e]' },
+    violet: { bg: 'bg-violet-500', text: 'text-violet-500', shadow: 'shadow-[0_0_15px_#8b5cf6]' },
+    amber: { bg: 'bg-amber-500', text: 'text-amber-500', shadow: 'shadow-[0_0_15px_#f59e0b]' },
+    white: { bg: 'bg-white', text: 'text-white', shadow: 'shadow-[0_0_15px_white]' },
+  };
+
+  const style = colorMap[colorName] || colorMap['red'];
+
+  return (
+    <div className="px-5 py-3 flex items-center gap-3 animate-pulse">
+      <div className={`w-1.5 h-4 ${style.bg} rounded-full ${style.shadow}`}></div>
+      <h2 className={`text-[12px] font-black italic uppercase tracking-[0.15em] ${style.text} drop-shadow-md`}>{title}</h2>
+    </div>
+  );
+};
 
 export default MainContent;
