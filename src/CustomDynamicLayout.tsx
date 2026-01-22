@@ -35,16 +35,15 @@ const CustomDynamicLayout: React.FC<CustomDynamicLayoutProps> = ({
 
     const pickVideos = (pool: Video[], count: number): Video[] => {
         if (!pool || pool.length === 0) return [];
+        // Strict filtering: Only pick videos that haven't been used anywhere else on the page
         const available = pool.filter(v => !usedIds.has(v.id));
         
-        let selected = available.slice(0, count);
-        // إذا لم تكفِ الفيديوهات الجديدة، نأخذ من القديم بشرط عدم التكرار في نفس القسم
-        if (selected.length < count) {
-            const extra = pool.filter(v => !selected.includes(v)).sort(() => 0.5 - Math.random());
-            selected = [...selected, ...extra.slice(0, count - selected.length)];
-        }
+        // Take up to 'count' items
+        const selected = available.slice(0, count);
         
+        // Mark these IDs as globally used
         selected.forEach(v => usedIds.add(v.id));
+        
         return selected;
     };
 

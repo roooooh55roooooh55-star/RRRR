@@ -38,6 +38,16 @@ export const initSmartBuffering = async (videos: Video[]): Promise<void> => {
   await Promise.allSettled(priorityVideos);
 };
 
+// --- NEW: AI-Triggered Super Boost ---
+export const forceAggressiveBuffer = async (videos: Video[]): Promise<void> => {
+    console.log("🚀 AI triggered aggressive buffering...");
+    if (!navigator.onLine || !videos || videos.length === 0) return;
+
+    // Load deeper into the list (next 20 videos) to solve lag instantly
+    const deepBuffer = videos.slice(0, 20).map(v => v.video_url ? preloadAsset(v.video_url, VIDEO_CACHE_NAME) : Promise.resolve(false));
+    await Promise.allSettled(deepBuffer);
+};
+
 export const cleanUpOldCache = async () => {
     try {
         const vCache = await caches.open(VIDEO_CACHE_NAME);

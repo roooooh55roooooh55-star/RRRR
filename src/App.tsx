@@ -50,7 +50,7 @@ const App: React.FC = () => {
     const cached = localStorage.getItem('rooh1_videos_cache');
     return !cached;
   });
-  const [isRefreshing, setIsRefreshing] = useState(false); // New state for smooth refresh
+  const [isRefreshing, setIsRefreshing] = useState(false); 
 
   const [selectedShort, setSelectedShort] = useState<{ video: Video, list: Video[] } | null>(null);
   const [selectedLong, setSelectedLong] = useState<{ video: Video, list: Video[] } | null>(null);
@@ -64,61 +64,77 @@ const App: React.FC = () => {
     setTimeout(() => setToast(null), 3000);
   };
 
+  // --- SMART RECOMMENDATION ENGINE ---
   const applySmartRecommendations = useCallback((videos: Video[], userInteractions: UserInteractions) => {
     if (!videos || videos.length === 0) return [];
+    
+    // 1. Get User Interests from SmartBrain (Most recent is at index 0)
+    const userInterests = SmartBrain.getTopInterests();
+    const primaryInterest = userInterests.length > 0 ? userInterests[0] : null;
     
     const seenIds = new Set([
         ...userInteractions.likedIds, 
         ...userInteractions.dislikedIds,
-        ...userInteractions.watchHistory.filter(w => w.progress > 0.1).map(w => w.id)
+        ...userInteractions.watchHistory.filter(w => w.progress > 0.8).map(w => w.id) // Only filter largely watched
     ]);
 
-    // 1. Split into Unseen and Seen
-    let unseenVideos = videos.filter(v => !seenIds.has(v.id));
-    const seenVideos = videos.filter(v => seenIds.has(v.id));
-    const userInterests = SmartBrain.getTopInterests();
-
-    // 2. Shuffle Unseen videos to ensure "New & Diverse" on every refresh
-    // This addresses the user requirement to see different videos on pull-to-refresh
-    unseenVideos = unseenVideos.sort(() => Math.random() - 0.5);
-
+    // 2. Scoring System
     const scoreVideo = (v: Video) => {
         let score = 0; 
-        if (userInterests.includes(v.category)) score += 20;
-        if (v.is_trending) score += 5;
-        // Small random factor to keep interest-based videos slightly mixed
-        score += Math.random() * 5; 
+        
+        // HUGE BOOST for the category currently being watched/finished
+        if (primaryInterest && v.category === primaryInterest) {
+            score += 500; // Force to top
+        } 
+        // Moderate boost for other interests
+        else if (userInterests.includes(v.category)) {
+            score += 50; 
+        }
+
+        if (v.is_trending) score += 10;
+        
+        // Random factor for discovery (0-10)
+        score += Math.random() * 10;
+        
+        // Slight penalty if seen, but not if it matches primary interest (we might want to re-show hits)
+        if (seenIds.has(v.id) && v.category !== primaryInterest) {
+            score -= 100;
+        }
+
         return score;
     };
 
-    const sortedUnseen = unseenVideos.sort((a, b) => scoreVideo(b) - scoreVideo(a));
-    const sortedSeen = seenVideos.sort((a, b) => scoreVideo(b) - scoreVideo(a));
-
-    return [...sortedUnseen, ...sortedSeen];
+    // 3. Sort
+    return [...videos].sort((a, b) => scoreVideo(b) - scoreVideo(a));
   }, []);
 
-  // --- SMOOTH REFRESH LOGIC ---
+  // --- TRIGGER FEED UPDATE ---
+  // Called when a user finishes a video to update the home feed instantly
+  const handleVideoFinish = useCallback((category: string) => {
+      console.log("🎬 User finished video in category:", category);
+      SmartBrain.saveInterest(category);
+      
+      // Re-sort display videos immediately based on new interest
+      setDisplayVideos(prev => applySmartRecommendations(rawVideos, interactions));
+  }, [rawVideos, interactions, applySmartRecommendations]);
+
   const handleManualRefresh = useCallback(async () => {
     if (isRefreshing) return;
     setIsRefreshing(true);
     showToast("جاري تجهيز كوابيس جديدة...");
 
-    // 1. Calculate new list (Now includes shuffling)
     const newOrder = applySmartRecommendations(rawVideos, interactions);
     
-    // 2. Preload FIRST 3 videos of the NEW list (7 seconds buffer)
     if (newOrder.length > 0) {
         await initSmartBuffering(newOrder.slice(0, 3));
     }
 
-    // 3. Swap instantly now that data is hot in cache
     setDisplayVideos(newOrder);
     setCurrentView(AppView.HOME);
     window.scrollTo({ top: 0, behavior: 'smooth' });
     setIsRefreshing(false);
     showToast("تم التحديث بنجاح 💀");
 
-    // 4. Continue buffering the rest in background
     if (newOrder.length > 3) {
         initSmartBuffering(newOrder.slice(3, 8));
     }
@@ -129,7 +145,6 @@ const App: React.FC = () => {
     if (rawVideos.length > 0) {
        const initialDisplay = applySmartRecommendations(rawVideos, interactions);
        setDisplayVideos(initialDisplay);
-       // Preload immediately on mount
        initSmartBuffering(initialDisplay.slice(0, 3));
        cleanUpOldCache();
     }
@@ -141,10 +156,7 @@ const App: React.FC = () => {
 
     const initFirestore = async () => {
         try {
-            // CRITICAL: Await authentication BEFORE setting up listeners
-            // This ensures Firebase rules don't reject the connection
             await ensureAuth().catch(e => console.error("Background Auth Error:", e));
-            
             if (!isMounted) return;
 
             const q = query(collection(db, "videos"), orderBy("created_at", "desc"));
@@ -161,7 +173,6 @@ const App: React.FC = () => {
                 localStorage.setItem('rooh1_videos_cache', JSON.stringify(validVideos));
                 setRawVideos(validVideos);
                 
-                // If first load, update display immediately
                 if (displayVideos.length === 0) {
                     const smartList = applySmartRecommendations(validVideos, interactions);
                     setDisplayVideos(smartList);
@@ -227,6 +238,7 @@ const App: React.FC = () => {
   };
 
   const playShortVideo = (v: Video, list: Video[]) => {
+      // Just opening triggers interest, finishing triggers boost
       SmartBrain.saveInterest(v.category);
       const smartList = displayVideos.filter(vid => vid.video_type === 'Shorts');
       setSelectedShort({ video: v, list: smartList });
@@ -427,7 +439,14 @@ const App: React.FC = () => {
             onDislike={handleDislike}
             onCategoryClick={(cat) => { setActiveCategory(cat); setCurrentView(AppView.CATEGORY); setSelectedShort(null); }}
             onSave={(id) => setInteractions(p => { const isSaved = p.savedIds.includes(id); return { ...p, savedIds: isSaved ? p.savedIds.filter(x => x !== id) : [...p.savedIds, id] }; })}
-            onProgress={(id, progress) => setInteractions(p => { const history = p.watchHistory.filter(h => h.id !== id); return { ...p, watchHistory: [...history, { id, progress }] }; })}
+            onProgress={(id, progress) => {
+                // If progress is high (>80%), update recommendations instantly
+                if (progress > 0.8) {
+                    const vid = selectedShort.video; // Capture current
+                    if (vid) handleVideoFinish(vid.category);
+                }
+                setInteractions(p => { const history = p.watchHistory.filter(h => h.id !== id); return { ...p, watchHistory: [...history, { id, progress }] }; });
+            }}
             onDownload={handleDownloadToggle}
             isGlobalDownloading={!!downloadProgress}
           />
@@ -451,7 +470,14 @@ const App: React.FC = () => {
             isSaved={interactions.savedIds.includes(selectedLong.video.id)}
             isDownloaded={interactions.downloadedIds.includes(selectedLong.video.id)}
             isGlobalDownloading={!!downloadProgress}
-            onProgress={(p) => { const id = selectedLong.video.id; setInteractions(prev => { const history = prev.watchHistory.filter(h => h.id !== id); return { ...prev, watchHistory: [...history, { id, progress: p }] }; }); }}
+            onProgress={(p) => { 
+                const id = selectedLong.video.id; 
+                // Instant update if near end
+                if (p > 0.9) {
+                    handleVideoFinish(selectedLong.video.category);
+                }
+                setInteractions(prev => { const history = prev.watchHistory.filter(h => h.id !== id); return { ...prev, watchHistory: [...history, { id, progress: p }] }; }); 
+            }}
           />
         </Suspense>
       )}

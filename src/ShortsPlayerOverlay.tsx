@@ -3,6 +3,7 @@ import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react'
 import { Video, UserInteractions } from './types';
 import { getDeterministicStats, formatBigNumber, LOGO_URL, formatVideoSource, NeonTrendBadge } from './MainContent';
 import { playNarrative, stopCurrentNarrative } from './elevenLabsManager';
+import { SmartBrain } from './SmartLogic'; // Added to ensure interest saving inside player
 
 interface ShortsPlayerOverlayProps {
   initialVideo: Video;
@@ -31,6 +32,19 @@ const ShortsPlayerOverlay: React.FC<ShortsPlayerOverlayProps> = ({
     return () => stopCurrentNarrative();
   }, [currentIndex]);
 
+  const handleVideoEnded = (video: Video) => {
+      // Explicitly save interest when video ends to ensure the feed updates correctly next time
+      SmartBrain.saveInterest(video.category);
+      
+      // Move to next
+      if (currentIndex < randomizedList.length - 1) {
+          const container = document.querySelector('.snap-y');
+          if (container) {
+              container.scrollTo({ top: (currentIndex + 1) * container.clientHeight, behavior: 'smooth' });
+          }
+      }
+  };
+
   const handleClose = () => { stopCurrentNarrative(); onClose(); };
 
   return (
@@ -55,7 +69,15 @@ const ShortsPlayerOverlay: React.FC<ShortsPlayerOverlayProps> = ({
                 ref={el => { videoRefs.current[`main-${idx}`] = el; }}
                 src={video.video_url} 
                 className="h-full w-full object-cover"
-                playsInline loop crossOrigin="anonymous"
+                playsInline loop={false} // Disable loop to detect end
+                crossOrigin="anonymous"
+                onEnded={() => isActive && handleVideoEnded(video)}
+                onTimeUpdate={(e) => {
+                    if (isActive) {
+                        const prog = e.currentTarget.currentTime / e.currentTarget.duration;
+                        onProgress(video.id, prog);
+                    }
+                }}
               />
               
               {/* --- ميزة الرابط التفاعلي (Emoji Link Feature) --- */}

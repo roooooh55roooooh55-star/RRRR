@@ -1,8 +1,10 @@
+
 import React, { useRef, useEffect, useState, useMemo } from 'react';
 import { Video } from './types';
 import { incrementViewsInDB } from './supabaseClient';
 import { getDeterministicStats, formatBigNumber, LOGO_URL, InteractiveMarquee, NeonTrendBadge } from './MainContent';
 import { playNarrative, stopCurrentNarrative } from './elevenLabsManager';
+import { SmartBrain } from './SmartLogic'; // Added SmartBrain import
 
 interface LongPlayerOverlayProps {
   video: Video;
@@ -85,7 +87,6 @@ const DynamicCaptions: React.FC<{ text: string, isActive: boolean }> = ({ text, 
         <div 
           className={`transition-all duration-500 ease-in-out transform ${isVisible ? 'opacity-100 translate-y-0 scale-100' : 'opacity-0 translate-y-4 scale-95'}`}
         >
-           {/* Removed background/border frame. Added text-shadow for neon effect and drop-shadow for contrast */}
            <span className={`text-sm md:text-base font-black italic leading-relaxed tracking-wide ${colorClass} [text-shadow:0_0_10px_currentColor] drop-shadow-[0_2px_3px_rgba(0,0,0,0.9)]`}>
               {currentChunk}
            </span>
@@ -140,7 +141,11 @@ const LongPlayerOverlay: React.FC<LongPlayerOverlayProps> = ({
     if (!video) return;
     const v = videoRef.current;
     if (!v) return;
-    const handleEnd = () => { if (isAutoPlay && suggestions.length > 0) onSwitchVideo(suggestions[0]); };
+    const handleEnd = () => { 
+        // Logic to prioritize category on end
+        SmartBrain.saveInterest(video.category);
+        if (isAutoPlay && suggestions.length > 0) onSwitchVideo(suggestions[0]); 
+    };
     const onPlayEvent = () => setIsPlaying(true);
     const onPauseEvent = () => setIsPlaying(false);
     const onLoadedMetadata = () => setDuration(v.duration);
@@ -160,7 +165,7 @@ const LongPlayerOverlay: React.FC<LongPlayerOverlayProps> = ({
       v.removeEventListener('timeupdate', onTimeUpdate);
       v.removeEventListener('loadedmetadata', onLoadedMetadata);
     };
-  }, [video?.id, isAutoPlay, suggestions, onSwitchVideo, onProgress]);
+  }, [video?.id, isAutoPlay, suggestions, onSwitchVideo, onProgress, video.category]);
 
   const toggleFullScreen = () => {
     if (!containerRef.current) return;

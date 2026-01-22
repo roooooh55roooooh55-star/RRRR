@@ -1,9 +1,11 @@
+
 import React, { useState, useRef, useEffect } from 'react';
 import { playNarrative, stopCurrentNarrative, subscribeToAudioState } from './elevenLabsManager';
 import { db, ensureAuth } from './firebaseConfig';
 import { doc, getDoc } from "firebase/firestore";
-import { SmartBrain, ChatMessage } from './SmartLogic'; // Import SmartBrain
+import { SmartBrain, ChatMessage } from './SmartLogic'; 
 import { Video, UserInteractions } from './types';
+import { forceAggressiveBuffer } from './smartCache'; // Import the boost function
 
 interface AIOracleProps {
   onRefresh?: () => void;
@@ -31,15 +33,16 @@ const AIOracle: React.FC<AIOracleProps> = ({ onRefresh, allVideos = [], interact
   const [visibleMessage, setVisibleMessage] = useState<string | null>(null);
   const [loading, setLoading] = useState(false); 
   const [isAudioPlaying, setIsAudioPlaying] = useState(false); 
+  const [isOptimizing, setIsOptimizing] = useState(false); // Visual cue for optimization
 
   // --- VIDEO AVATAR STATE ---
   const [silentUrl, setSilentUrl] = useState('');
   const [talkingUrl, setTalkingUrl] = useState('');
 
   // 24-Hour Voice Lockout Logic
-  const [voiceCount, setVoiceCount] = useState(0); // Session counter
+  const [voiceCount, setVoiceCount] = useState(0); 
   const [isVoiceLocked, setIsVoiceLocked] = useState(false);
-  const [textTurnCount, setTextTurnCount] = useState(0); // Counts turns AFTER voice lock to show suggestions
+  const [textTurnCount, setTextTurnCount] = useState(0); 
 
   const [position, setPosition] = useState<{x: number, y: number} | null>(null);
   const [isDragging, setIsDragging] = useState(false);
@@ -66,7 +69,7 @@ const AIOracle: React.FC<AIOracleProps> = ({ onRefresh, allVideos = [], interact
         }
     };
     checkVoiceStatus();
-  }, [isOpen]); // Re-check when opening
+  }, [isOpen]); 
 
   useEffect(() => {
     if (isOpen) {
@@ -181,19 +184,16 @@ const AIOracle: React.FC<AIOracleProps> = ({ onRefresh, allVideos = [], interact
     if (onRefresh) onRefresh();
   };
 
-  // Find and play a video (AI Command or Fate Button)
   const executeVideoPlay = (searchQuery?: string) => {
       if (!allVideos || allVideos.length === 0 || !onPlayVideo) return;
 
       let targetVideo: Video | undefined;
 
       if (searchQuery) {
-          // Fuzzy search
           const query = searchQuery.toLowerCase();
           targetVideo = allVideos.find(v => v.title.toLowerCase().includes(query) || v.description?.toLowerCase().includes(query) || v.category.toLowerCase().includes(query));
       }
 
-      // Fallback: Random based on interests or random completely
       if (!targetVideo) {
           const topInterests = SmartBrain.getTopInterests();
           let candidates = allVideos.filter(v => topInterests.includes(v.category));
@@ -224,18 +224,27 @@ const AIOracle: React.FC<AIOracleProps> = ({ onRefresh, allVideos = [], interact
     setVisibleMessage(null);
 
     try {
-      // Pass allVideos to SmartBrain so it can recommend specifics
+      // Pass allVideos to SmartBrain
       const aiResponse = await SmartBrain.askAssistant(userMessage, newHistory, allVideos);
       
       const replyText = aiResponse.reply;
       setHistory(prev => [...prev, { role: 'model', text: replyText }]);
       setVisibleMessage(replyText);
 
-      // Handle AI Commands
+      // --- ACTION HANDLERS ---
+      
+      // 1. Play Specific Video
       if (aiResponse.action === 'play_video') {
            setTimeout(() => {
                executeVideoPlay(aiResponse.search_query);
            }, 2000);
+      }
+
+      // 2. NEW: Optimize Playback (The Silent Fix)
+      if (aiResponse.action === 'optimize_playback') {
+          setIsOptimizing(true); // Trigger visual cue
+          forceAggressiveBuffer(allVideos); // Start heavy lifting in background
+          setTimeout(() => setIsOptimizing(false), 4000); // Hide cue after 4s
       }
 
       // Voice Handling Logic
@@ -254,7 +263,6 @@ const AIOracle: React.FC<AIOracleProps> = ({ onRefresh, allVideos = [], interact
           }
         }
         
-        // Hide text based on read time
         const wordCount = replyText.split(' ').length;
         const readTime = Math.max(4000, (wordCount / 2) * 1000); 
         messageTimeoutRef.current = setTimeout(() => {
@@ -262,7 +270,6 @@ const AIOracle: React.FC<AIOracleProps> = ({ onRefresh, allVideos = [], interact
         }, readTime + 2000);
 
       } else {
-        // Voice is LOCKED (24h cooldown)
         setTextTurnCount(prev => prev + 1);
         messageTimeoutRef.current = setTimeout(() => {
             setVisibleMessage(null);
@@ -277,7 +284,6 @@ const AIOracle: React.FC<AIOracleProps> = ({ onRefresh, allVideos = [], interact
     }
   };
 
-  // Show Suggestion Button every 5 text turns when voice is locked
   const showSuggestionButton = isVoiceLocked && textTurnCount > 0 && textTurnCount % 5 === 0;
 
   return (
@@ -291,12 +297,14 @@ const AIOracle: React.FC<AIOracleProps> = ({ onRefresh, allVideos = [], interact
         className={`fixed z-[100] w-20 h-20 flex items-center justify-center cursor-pointer transition-transform duration-100 ${isDragging ? 'scale-110 cursor-grabbing' : 'active:scale-95 cursor-grab'} touch-none select-none group`}
         title="سيدة الحديقة AI"
       >
-        {isDragging && (
-          <div className="absolute inset-0 rounded-full blur-2xl bg-gradient-to-tr from-cyan-400 via-purple-500 to-yellow-400 opacity-80 animate-pulse duration-75"></div>
+        {/* Visual Cue for Optimization */}
+        {(isDragging || isOptimizing) && (
+          <div className={`absolute inset-0 rounded-full blur-2xl opacity-80 animate-pulse duration-75 ${isOptimizing ? 'bg-green-500' : 'bg-gradient-to-tr from-cyan-400 via-purple-500 to-yellow-400'}`}></div>
         )}
+        
         <div 
           className={`absolute w-full h-full rounded-full border-t-4 border-b-4 border-red-600 border-l-transparent border-r-transparent animate-spin ${isDragging ? 'shadow-[0_0_40px_#ef4444]' : 'shadow-[0_0_15px_rgba(220,38,38,0.6)]'}`} 
-          style={{ animationDuration: isDragging ? '0.5s' : '1.5s' }}
+          style={{ animationDuration: isDragging || isOptimizing ? '0.5s' : '1.5s' }}
         ></div>
         <div 
           className={`absolute w-[92%] h-[92%] rounded-full border-l-2 border-r-2 border-yellow-500 border-t-transparent border-b-transparent animate-spin ${isDragging ? 'shadow-[0_0_30px_#eab308]' : 'shadow-[0_0_10px_rgba(234,179,8,0.6)]'}`} 
@@ -327,14 +335,18 @@ const AIOracle: React.FC<AIOracleProps> = ({ onRefresh, allVideos = [], interact
 
               {/* Status Indicator */}
               <div className="absolute top-4 right-4 z-50 flex flex-col items-end gap-1">
+                 {isOptimizing && (
+                     <div className="bg-green-600/20 border border-green-500 text-green-400 px-3 py-1 rounded-full text-[9px] font-black animate-pulse mb-1">
+                         ⚡ BOOST ACTIVATED
+                     </div>
+                 )}
                  <div className="flex items-center gap-2 bg-black/60 px-3 py-1 rounded-full border border-red-600/20 backdrop-blur-md">
                     <div className={`w-2 h-2 rounded-full ${isTalking ? 'bg-green-500 animate-pulse shadow-[0_0_10px_lime]' : 'bg-red-600'}`}></div>
                     <span className="text-[10px] font-black text-white/80 uppercase tracking-widest">{isTalking ? 'SPEAKING' : (isVoiceLocked ? 'TEXT MODE' : 'LISTENING')}</span>
                  </div>
               </div>
 
-              {/* === VIDEO AVATARS === */}
-              {/* Silent Loop (Default) */}
+              {/* Videos */}
               {silentUrl && (
                   <video 
                     src={silentUrl} 
@@ -343,8 +355,6 @@ const AIOracle: React.FC<AIOracleProps> = ({ onRefresh, allVideos = [], interact
                     className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-100 ${isTalking ? 'opacity-0' : 'opacity-100'}`}
                   />
               )}
-              
-              {/* Talking Loop (Active when TTS plays) */}
               {talkingUrl && (
                   <video 
                     src={talkingUrl} 
@@ -354,11 +364,10 @@ const AIOracle: React.FC<AIOracleProps> = ({ onRefresh, allVideos = [], interact
                   />
               )}
               
-              {/* Fallback Image if no videos are set */}
               {!silentUrl && !talkingUrl && (
                   <div className="absolute inset-0 flex items-center justify-center bg-neutral-900 text-gray-500 flex-col gap-4">
                       <div className="relative w-24 h-24 flex items-center justify-center">
-                          <div className="absolute inset-0 rounded-full border-t-2 border-b-2 border-red-600 border-l-transparent border-r-transparent animate-spin shadow-[0_0_30px_#dc2626] opacity-80" style={{ animationDuration: '1.5s' }}></div>
+                          <div className={`absolute inset-0 rounded-full border-t-2 border-b-2 border-l-transparent border-r-transparent animate-spin opacity-80 ${isOptimizing ? 'border-green-500 shadow-[0_0_40px_lime]' : 'border-red-600 shadow-[0_0_30px_#dc2626]'}`} style={{ animationDuration: isOptimizing ? '0.5s' : '1.5s' }}></div>
                           <div className="absolute inset-2 rounded-full border-l-2 border-r-2 border-yellow-500 border-t-transparent border-b-transparent animate-spin shadow-[0_0_20px_#eab308] opacity-80" style={{ animationDirection: 'reverse', animationDuration: '2s' }}></div>
                           <img 
                             src="https://i.top4top.io/p_3643ksmii1.jpg" 
@@ -374,14 +383,12 @@ const AIOracle: React.FC<AIOracleProps> = ({ onRefresh, allVideos = [], interact
 
               {/* MESSAGE OVERLAY */}
               <div className="absolute bottom-6 left-0 right-0 z-[60] px-6 flex flex-col items-center justify-end min-h-[100px]">
-                  {/* Thinking Indicator */}
                   {loading && (
                       <div className="mb-2 bg-red-950/40 text-red-500 px-4 py-1 rounded-full text-[10px] font-black animate-pulse border border-red-600/20 backdrop-blur-sm">
                           جاري استدعاء الروح...
                       </div>
                   )}
 
-                  {/* The Message Itself */}
                   {visibleMessage && !loading && (
                       <div className={`animate-in slide-in-from-bottom-5 fade-in duration-500 w-full max-w-md`}>
                           <div className={`bg-black/40 backdrop-blur-sm p-2 rounded-xl text-center shadow-[0_0_30px_rgba(220,38,38,0.2)]`}>
@@ -423,10 +430,7 @@ const AIOracle: React.FC<AIOracleProps> = ({ onRefresh, allVideos = [], interact
 
              <div className="absolute top-0 left-0 right-0 h-10 bg-gradient-to-b from-black to-transparent pointer-events-none z-10"></div>
 
-             {/* 
-                SUGGESTION BUTTON:
-                Shows only if Voice is Locked AND every 5 text turns.
-             */}
+             {/* SUGGESTION BUTTON */}
              {showSuggestionButton && (
                  <div className="flex flex-col items-center justify-center mt-2 mb-1 relative z-30 animate-in fade-in zoom-in duration-300">
                      <p className="text-[10px] text-red-400 font-bold mb-1 animate-pulse">حارس الحديقة مشغول... بس ممكن تشوفي ده؟</p>

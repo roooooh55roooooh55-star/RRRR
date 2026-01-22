@@ -95,7 +95,7 @@ export const NeonTrendBadge = ({ is_trending }: { is_trending: boolean }) => {
     <div className="absolute top-2 left-2 z-50">
       <div className="p-1.5 rounded-lg bg-red-600 text-white shadow-[0_0_15px_#ef4444] animate-pulse flex items-center justify-center border border-red-400">
         <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-          <path d="M17.55,11.2C17.32,10.93 15.33,8.19 15.33,8.19C15.33,8.19 15.1,10.03 14.19,10.82C13.21,11.66 12,12.24 12,13.91C12,15.12 12.6,16.22 13.56,16.89C13.88,17.11 14.24,17.29 14.63,17.41C15.4,17.63 16.23,17.61 17,17.33C17.65,17.1 18.23,16.69 18.66,16.15C19.26,15.38 19.5,14.41 19.34,13.44C19.16,12.56 18.63,11.83 18.05,11.33C17.9,11.23 17.73,11.25 17.55,11.2M13,3C13,3 12,5 10,7C8.5,8.5 7,10 7,13C7,15.76 9.24,18 12,18C12,18 11.5,17.5 11,16.5C10.5,15.5 10,14.5 10,13.5C10,12.5 10.5,11.5 11.5,10.5C12.5,9.5 14,8 14,8C14,8 15,10 16,12C16.5,13 17,14 17,15C17,15.5 16.9,16 16.75,16.5C17.5,16 18,15C18,13 17,11.5 15,10C13.5,8.88 13,3 13,3Z"/>
+          <path d="M17.55,11.2C17.32,10.93 15.33,8.19 15.33,8.19C15.33,8.19 15.1,10.03 14.19,10.82C13.21,11.66 12,12.24 12,13.91C12,15.12 12.6,16.22 13.56,16.89C13.88,17.11 14.24,17.29 14.63,17.41C15.4,17.63 16.23,17.61 17,17.33C17.65,17.1 18.23,16.69 18.66,16.15C19.26,15.38 19.5,14.41 19.34,13.44C19.16,12.56 18.63,11.83 18.05,11.33C17.9,11.23 17.73,11.25 17.55,11.2M13,3C13,3 12,5 10,7C8.5,8.5 7,10 7,13C7,15.76 9.24,18 12,18C12,18 11.5,17.5 11,16.5C10.5,15.5 10,14.5 10,13.5C10,12.5 10.5,11.5 11.5,10.5C12.5,9.5 14,8 14,8C14,8 15,10 16,12C16.5,13 17,14 17,15C17,15.5 16.9,16 16.75,16.5C17.5,16 18,15.5 18,15C18,13 17,11.5 15,10C13.5,8.88 13,3 13,3Z"/>
         </svg>
       </div>
     </div>
@@ -520,7 +520,7 @@ const MainContent: React.FC<any> = ({
   const shortsOnly = useMemo(() => safeVideos.filter((v: any) => v && v.video_type === 'Shorts'), [safeVideos]);
   const longsOnly = useMemo(() => safeVideos.filter((v: any) => v && v.video_type === 'Long Video'), [safeVideos]);
 
-  // Fallback lists if no layout is defined
+  // Fallback lists if no layout is defined - REDESIGNED PER USER REQUEST
   const { 
     marqueeShorts1, marqueeLongs1, 
     gridShorts1, gridShorts2, 
@@ -528,7 +528,8 @@ const MainContent: React.FC<any> = ({
     marqueeShorts2, marqueeLongs2, 
     gridShorts3, gridShorts4, 
     stackLongs2, 
-    marqueeShorts3, marqueeLongs3 
+    marqueeShorts3, marqueeLongs3,
+    marqueeShorts4 
   } = useMemo(() => {
      const usedIds = new Set<string>();
      const getUniqueBatch = (source: Video[], count: number): Video[] => {
@@ -538,25 +539,40 @@ const MainContent: React.FC<any> = ({
         return selected;
      };
 
+     // 1. Initial Marquees
      const ms1 = getUniqueBatch(shortsOnly, 12);
      const ml1 = getUniqueBatch(longsOnly, 8);
+     
+     // 2. Initial Shorts Grid
      const gs1 = getUniqueBatch(shortsOnly, 2);
      const gs2 = getUniqueBatch(shortsOnly, 2);
+     
+     // 3. Stacked Longs (Batch 1)
      const sl1 = getUniqueBatch(longsOnly, 4);
+     
+     // 4. Moving Bars (Batch 1)
      const ms2 = getUniqueBatch(shortsOnly, 12);
      const ml2 = getUniqueBatch(longsOnly, 8);
+     
+     // 5. Shorts Grid (Batch 2)
      const gs3 = getUniqueBatch(shortsOnly, 2);
      const gs4 = getUniqueBatch(shortsOnly, 2);
+     
+     // 6. Stacked Longs (Batch 2)
      const sl2 = getUniqueBatch(longsOnly, 4);
+     
+     // 7. Moving Bars (Batch 2 - Finale)
      const ms3 = getUniqueBatch(shortsOnly, 12);
      const ml3 = getUniqueBatch(longsOnly, 8);
+     const ms4 = getUniqueBatch(shortsOnly, 12);
 
      return {
         marqueeShorts1: ms1, marqueeLongs1: ml1,
         gridShorts1: gs1, gridShorts2: gs2, stackLongs1: sl1,
         marqueeShorts2: ms2, marqueeLongs2: ml2,
         gridShorts3: gs3, gridShorts4: gs4, stackLongs2: sl2,
-        marqueeShorts3: ms3, marqueeLongs3: ml3
+        marqueeShorts3: ms3, marqueeLongs3: ml3,
+        marqueeShorts4: ms4
      };
   }, [shortsOnly, longsOnly]);
 
@@ -679,23 +695,22 @@ const MainContent: React.FC<any> = ({
             isOverlayActive={isOverlayActive}
         />
       ) : (
-        /* DEFAULT HARDCODED FALLBACK (Only if no layout saved) */
+        /* DEFAULT HARDCODED FALLBACK (SEQUENTIAL DESIGN AS REQUESTED) */
         <>
-            {/* 1. Moving Shorts Marquee */}
+            {/* 1. Header Marquees */}
             {marqueeShorts1.length > 0 && (
-                <div className="mb-16"> {/* Increased spacing */}
+                <div className="mb-16">
                     <InteractiveMarquee videos={marqueeShorts1} onPlay={(v) => onPlayShort(v, shortsOnly)} isShorts={true} direction="left-to-right" interactions={interactions} transparent={false} onLike={onLike} />
                 </div>
             )}
             
-            {/* 2. Moving Long Videos Marquee */}
             {marqueeLongs1.length > 0 && (
-                <div className="mb-16"> {/* Increased spacing */}
+                <div className="mb-16">
                     <InteractiveMarquee videos={marqueeLongs1} onPlay={(v) => onPlayLong(v, longsOnly)} direction="right-to-left" interactions={interactions} transparent={false} onLike={onLike} />
                 </div>
             )}
 
-            {/* 3. 2 Shorts Side-by-Side */}
+            {/* 2. Shorts Grid (The "Shorts Videos" mentioned at start) */}
             {gridShorts1.length > 0 && (
                 <>
                 <SectionHeader title="أهوال قصيرة (مختارة)" color="bg-yellow-500" />
@@ -709,9 +724,6 @@ const MainContent: React.FC<any> = ({
                 </>
             )}
 
-            {/* ... rest of the grid/stack sections remain same ... */}
-            
-            {/* 4. 2 Shorts Side-by-Side */}
             {gridShorts2.length > 0 && (
                 <div className="px-4 grid grid-cols-2 gap-3.5 mb-6">
                     {gridShorts2.map((v: any) => v && (
@@ -722,11 +734,11 @@ const MainContent: React.FC<any> = ({
                 </div>
             )}
 
-            {/* 5. 4 Long Videos Stacked */}
+            {/* 3. Stacked Longs (Batch 1) */}
             {stackLongs1.length > 0 && (
                 <>
                 <SectionHeader title="حكايات مرعبة (كاملة)" color="bg-red-600" />
-                <div className="px-4 space-y-4 mb-6">
+                <div className="px-4 space-y-4 mb-16">
                     {stackLongs1.map((v: any) => v && (
                     <div key={v.id} onClick={() => onPlayLong(v, longsOnly)} className="aspect-video w-full animate-in zoom-in-95 duration-500">
                         <VideoCardThumbnail video={v} interactions={interactions} isOverlayActive={isOverlayActive} onLike={onLike} onCategoryClick={onCategoryClick} />
@@ -736,23 +748,23 @@ const MainContent: React.FC<any> = ({
                 </>
             )}
 
-            {/* 6. Moving Shorts Marquee */}
+            {/* 4. Moving Shorts Bar */}
             {marqueeShorts2.length > 0 && (
-                <div className="mb-16"> {/* Increased spacing */}
+                <div className="mb-16"> 
                     <SectionHeader title="ومضات من الجحيم" color="bg-orange-500" />
                     <InteractiveMarquee videos={marqueeShorts2} onPlay={(v) => onPlayShort(v, shortsOnly)} isShorts={true} direction="left-to-right" interactions={interactions} onLike={onLike} />
                 </div>
             )}
 
-            {/* 7. Moving Long Videos Marquee */}
+            {/* 5. Moving Long Bar */}
             {marqueeLongs2.length > 0 && (
-                <div className="mb-16"> {/* Increased spacing */}
+                <div className="mb-16"> 
                     <SectionHeader title="أرشيف الخزنة" color="bg-emerald-500" />
                     <InteractiveMarquee videos={marqueeLongs2} onPlay={(v) => onPlayLong(v, longsOnly)} direction="right-to-left" interactions={interactions} onLike={onLike} />
                 </div>
             )}
 
-            {/* Grid 2 Shorts */}
+            {/* 6. Shorts Grid (Batch 2) */}
             {gridShorts3.length > 0 && (
                 <>
                 <SectionHeader title="ظلال متحركة" color="bg-purple-500" />
@@ -766,7 +778,6 @@ const MainContent: React.FC<any> = ({
                 </>
             )}
 
-            {/* Grid 2 Shorts */}
             {gridShorts4.length > 0 && (
                 <div className="px-4 grid grid-cols-2 gap-3.5 mb-6">
                     {gridShorts4.map((v: any) => v && (
@@ -777,11 +788,11 @@ const MainContent: React.FC<any> = ({
                 </div>
             )}
 
-            {/* Stack Longs */}
+            {/* 7. Stacked Longs (Batch 2) */}
             {stackLongs2.length > 0 && (
                 <>
                 <SectionHeader title="ملفات سرية" color="bg-blue-600" />
-                <div className="px-4 space-y-4 mb-6">
+                <div className="px-4 space-y-4 mb-16">
                     {stackLongs2.map((v: any) => v && (
                     <div key={v.id} onClick={() => onPlayLong(v, longsOnly)} className="aspect-video w-full animate-in zoom-in-95 duration-500">
                         <VideoCardThumbnail video={v} interactions={interactions} isOverlayActive={isOverlayActive} onLike={onLike} onCategoryClick={onCategoryClick} />
@@ -791,19 +802,24 @@ const MainContent: React.FC<any> = ({
                 </>
             )}
 
-            {/* Marquee Shorts */}
+            {/* 8. Final Sequence: Shorts Bar -> Long Bar -> Shorts Bar */}
             {marqueeShorts3.length > 0 && (
-                <div className="mb-16"> {/* Increased spacing */}
+                <div className="mb-16">
                     <SectionHeader title="النهاية تقترب" color="bg-pink-600" />
                     <InteractiveMarquee videos={marqueeShorts3} onPlay={(v) => onPlayShort(v, shortsOnly)} isShorts={true} direction="left-to-right" interactions={interactions} onLike={onLike} />
                 </div>
             )}
 
-            {/* Marquee Longs */}
             {marqueeLongs3.length > 0 && (
-                <div className="mb-16"> {/* Increased spacing */}
+                <div className="mb-16">
                     <SectionHeader title="الخروج من القبو" color="bg-white" />
                     <InteractiveMarquee videos={marqueeLongs3} onPlay={(v) => onPlayLong(v, longsOnly)} direction="right-to-left" interactions={interactions} onLike={onLike} />
+                </div>
+            )}
+
+            {marqueeShorts4.length > 0 && (
+                <div className="mb-16">
+                    <InteractiveMarquee videos={marqueeShorts4} onPlay={(v) => onPlayShort(v, shortsOnly)} isShorts={true} direction="left-to-right" interactions={interactions} onLike={onLike} />
                 </div>
             )}
         </>
