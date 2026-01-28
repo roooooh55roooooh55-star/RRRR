@@ -8,7 +8,7 @@ interface PrivacyPageProps {
 
 const PrivacyPage: React.FC<PrivacyPageProps> = ({ onOpenAdmin, onBack }) => {
   const LOGO_URL = "https://i.top4top.io/p_3643ksmii1.jpg";
-  const EXTERNAL_URL = "https://zooozooo1.blogspot.com/2026/01/blog-post.html";
+  const EXTERNAL_URL = "https://dainty-llama-13e309.netlify.app/";
   
   // State to track clicks for developer access
   const [clickCount, setClickCount] = useState(0);
