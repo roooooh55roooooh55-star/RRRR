@@ -25,6 +25,7 @@ const ShortsPlayerOverlay: React.FC<ShortsPlayerOverlayProps> = ({
   const randomizedList = useMemo(() => [initialVideo, ...videoList.filter(v => v.id !== initialVideo.id).sort(() => Math.random() - 0.5)], [initialVideo, videoList]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const videoRefs = useRef<{ [key: string]: HTMLVideoElement | null }>({});
+  const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const v = videoRefs.current[`main-${currentIndex}`];
@@ -38,7 +39,7 @@ const ShortsPlayerOverlay: React.FC<ShortsPlayerOverlayProps> = ({
       
       // Move to next
       if (currentIndex < randomizedList.length - 1) {
-          const container = document.querySelector('.snap-y');
+          const container = containerRef.current;
           if (container) {
               container.scrollTo({ top: (currentIndex + 1) * container.clientHeight, behavior: 'smooth' });
           }
@@ -55,10 +56,14 @@ const ShortsPlayerOverlay: React.FC<ShortsPlayerOverlayProps> = ({
         </button>
       </div>
 
-      <div className="flex-grow overflow-y-scroll snap-y snap-mandatory scrollbar-hide h-full w-full" onScroll={e => {
+      <div 
+        ref={containerRef}
+        className="flex-grow overflow-y-scroll snap-y snap-mandatory [scroll-snap-stop:always] scrollbar-hide h-full w-full touch-pan-y" 
+        onScroll={e => {
           const idx = Math.round(e.currentTarget.scrollTop / e.currentTarget.clientHeight);
           if (idx !== currentIndex) setCurrentIndex(idx);
-      }}>
+        }}
+      >
         {randomizedList.map((video, idx) => {
           const isLiked = interactions.likedIds.includes(video.id);
           const isActive = idx === currentIndex;

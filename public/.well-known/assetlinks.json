@@ -1,0 +1,14 @@
+[
+  {
+    "relation": [
+      "delegate_permission/common.handle_all_urls"
+    ],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.famouscascaron.lolo",
+      "sha256_cert_fingerprints": [
+        "8B:6B:12:DF:29:44:05:88:FC:27:CA:C3:84:05:93:81:7E:D9:74:AF:A8:48:49:2C:D5:73:E5:D3:85:F5:66:7E"
+      ]
+    }
+  }
+]

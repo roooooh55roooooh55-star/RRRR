@@ -524,7 +524,17 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose, categories, in
                                 <div className="flex gap-2">
                                     <button onClick={() => { 
                                         setEditingId(v.id); 
-                                        setNewVideo({...v}); 
+                                        setNewVideo({
+                                            title: v.title,
+                                            description: v.description,
+                                            category: v.category,
+                                            video_type: v.video_type,
+                                            is_trending: v.is_trending,
+                                            read_narrative: v.read_narrative || false,
+                                            redirect_url: v.redirect_url || '',
+                                            poster_url: v.poster_url || '',
+                                            video_url: v.video_url || ''
+                                        }); 
                                         setPreviewUrl(v.video_url); // Set existing URL for preview
                                         setPosterPreviewUrl(v.poster_url || null); 
                                         // Scroll to top

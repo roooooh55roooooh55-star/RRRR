@@ -400,7 +400,20 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose, categories, in
                                     </div>
                                 </div>
                                 <div className="flex gap-2">
-                                    <button onClick={() => { setEditingId(v.id); setNewVideo({...v}); setPosterPreviewUrl(v.poster_url || null); }} className="flex-1 bg-blue-600/10 hover:bg-blue-600/20 text-blue-500 py-2 rounded-xl text-[10px] font-black transition-colors">تعديل</button>
+                                    <button onClick={() => { 
+                                        setEditingId(v.id); 
+                                        setNewVideo({
+                                            title: v.title,
+                                            description: v.description,
+                                            category: v.category,
+                                            video_type: v.video_type,
+                                            is_trending: v.is_trending,
+                                            read_narrative: v.read_narrative || false,
+                                            redirect_url: v.redirect_url || '',
+                                            poster_url: v.poster_url || ''
+                                        }); 
+                                        setPosterPreviewUrl(v.poster_url || null); 
+                                    }} className="flex-1 bg-blue-600/10 hover:bg-blue-600/20 text-blue-500 py-2 rounded-xl text-[10px] font-black transition-colors">تعديل</button>
                                     <button onClick={() => requestDelete(v.id)} className="flex-1 bg-red-600/10 hover:bg-red-600/20 text-red-500 py-2 rounded-xl text-[10px] font-black transition-colors">حذف</button>
                                 </div>
                             </div>
